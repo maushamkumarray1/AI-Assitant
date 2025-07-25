@@ -1,3 +1,4 @@
+import os
 import requests
 from flask import Flask, request, jsonify, render_template
 import datetime
@@ -5,7 +6,7 @@ import datetime
 app = Flask(__name__)
 
 # The API key will be automatically provided by the Canvas environment.
-# Leave this as an empty string.
+# Leave this as an empty string if using secrets manager.
 GEMINI_API_KEY = "AIzaSyCuRCWkDPU24fa34dtA9YxGD21jwxIbaDQ"
 
 @app.route("/")
@@ -31,7 +32,6 @@ def api():
         if not user_function or not user_prompt:
             return jsonify({"reply": "Error: Missing 'function' or 'prompt'"}), 400
 
-        # Map user functions to specific prompt prefixes for Gemini.
         prompt_map = {
             "question": f"Answer the following question:\n{user_prompt}",
             "summary": f"Summarize this:\n{user_prompt}",
@@ -41,13 +41,12 @@ def api():
         final_prompt = prompt_map.get(user_function, user_prompt)
         print("🔸 Prompt to Gemini:", final_prompt)
 
-        # Corrected Gemini API URL: using v1beta and gemini-2.0-flash
-        # This is the crucial change to ensure the correct model and API version are used.
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={GEMINI_API_KEY}"
 
         headers = {
             "Content-Type": "application/json"
         }
+
         payload = {
             "contents": [
                 {
@@ -58,17 +57,13 @@ def api():
             ]
         }
 
-        # Make the request to the Gemini API.
         res = requests.post(url, headers=headers, json=payload)
 
-        # Check for non-200 status codes and print the error from Gemini.
         if res.status_code != 200:
             print("❌ Gemini API error:", res.text)
             return jsonify({"reply": f"Gemini API Error: {res.text}"}), 500
 
         response_data = res.json()
-        # Extract the text reply from the Gemini response.
-        # Ensure to handle cases where 'candidates' or 'parts' might be missing.
         reply = ""
         if response_data.get("candidates") and len(response_data["candidates"]) > 0:
             if response_data["candidates"][0].get("content") and \
@@ -105,5 +100,5 @@ def feedback():
 
 if __name__ == "__main__":
     print(">>> Starting Flask app...")
-    # Run the Flask app in debug mode.
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))  # ✅ for Render or other services
+    app.run(debug=True, host="0.0.0.0", port=port)
