@@ -1,4 +1,2 @@
 flask
 openai
-Install with:
-pip install -r 
